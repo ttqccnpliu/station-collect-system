@@ -7,14 +7,9 @@ const stationCollectRouter = require('./api/station-collect');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS 配置 - 允许 Vercel 域名
+// CORS 配置 - 允许所有来源（生产环境）
 const corsOptions = {
-  origin: [
-    'https://station-collect-system.vercel.app',
-    'https://*.vercel.app',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000'
-  ],
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
