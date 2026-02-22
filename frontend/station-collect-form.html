@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>站点信息采集</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem; }
+        .form-input { width: 100%; padding: 0.625rem 0.875rem; border: 1px solid #D1D5DB; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s; }
+        .form-input:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .form-input.error { border-color: #EF4444; }
+        .error-message { color: #EF4444; font-size: 0.75rem; margin-top: 0.25rem; }
+        .required::after { content: " *"; color: #EF4444; }
+        .btn-primary { background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .btn-secondary { background: #F3F4F6; color: #374151; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; }
+        .image-preview { width: 100px; height: 100px; border: 2px dashed #D1D5DB; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .image-preview:hover { border-color: #3B82F6; background: #F0F9FF; }
+        .service-tag { display: inline-flex; align-items: center; padding: 0.375rem 0.75rem; background: #EFF6FF; color: #1D4ED8; border-radius: 9999px; font-size: 0.875rem; margin: 0.25rem; cursor: pointer; transition: all 0.2s; }
+        .service-tag:hover { background: #DBEAFE; }
+        .service-tag.selected { background: #3B82F6; color: white; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto py-8 px-4">
+        <!-- 头部 -->
+        <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">站点信息采集</h1>
+                    <p class="text-gray-500 mt-1">请填写站点详细信息，带 * 的为必填项</p>
+                </div>
+                <div class="text-right">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        新站点采集
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 表单 -->
+        <form id="stationForm" class="bg-white rounded-2xl shadow-sm p-8">
+            <!-- 基本信息 -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold mr-3">1</span>
+                    基本信息
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                        <label class="form-label required">站点名称</label>
+                        <input type="text" name="station_name" class="form-input" placeholder="请输入站点名称" required>
+                        <div class="error-message" id="error-station_name"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">采集类型</label>
+                        <select name="collect_type" class="form-input" required>
+                            <option value="">请选择采集类型</option>
+                            <option value="1">新站点</option>
+                            <option value="2">信息更新</option>
+                            <option value="3">纠错</option>
+                            <option value="4">补充</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">站点类型</label>
+                        <select name="station_type" class="form-input" required>
+                            <option value="">请选择站点类型</option>
+                            <option value="1">综合检测站</option>
+                            <option value="2">环保检测站</option>
+                            <option value="3">安检站</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">区域编码</label>
+                        <input type="text" name="area_code" class="form-input" placeholder="如：440300" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 位置信息 -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold mr-3">2</span>
+                    位置信息
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-group md:col-span-2">
+                        <label class="form-label required">详细地址</label>
+                        <input type="text" name="address" class="form-input" placeholder="请输入详细地址" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">经度</label>
+                        <input type="number" step="0.0000001" name="longitude" class="form-input" placeholder="如：114.0578680">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">纬度</label>
+                        <input type="number" step="0.0000001" name="latitude" class="form-input" placeholder="如：22.5430990">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 联系信息 -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold mr-3">3</span>
+                    联系信息
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                        <label class="form-label">联系人</label>
+                        <input type="text" name="contact_name" class="form-input" placeholder="请输入联系人姓名">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">联系电话</label>
+                        <input type="tel" name="contact_phone" class="form-input" placeholder="请输入联系电话">
+                    </div>
+                    <div class="form-group md:col-span-2">
+                        <label class="form-label">营业时间</label>
+                        <input type="text" name="business_hours" class="form-input" placeholder="如：周一至周五 08:30-17:30">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 服务项目 -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold mr-3">4</span>
+                    服务项目
+                </h2>
+                <div class="form-group">
+                    <label class="form-label">选择服务项目（可多选）</label>
+                    <div class="flex flex-wrap gap-2" id="servicesContainer">
+                        <span class="service-tag" data-value="机动车安全技术检验">机动车安全技术检验</span>
+                        <span class="service-tag" data-value="机动车环保检测">机动车环保检测</span>
+                        <span class="service-tag" data-value="综合性能检测">综合性能检测</span>
+                        <span class="service-tag" data-value="摩托车检测">摩托车检测</span>
+                        <span class="service-tag" data-value="新车查验">新车查验</span>
+                        <span class="service-tag" data-value="二手车评估">二手车评估</span>
+                        <span class="service-tag" data-value="车辆维修">车辆维修</span>
+                        <span class="service-tag" data-value="保险代理">保险代理</span>
+                    </div>
+                    <input type="hidden" name="services" id="servicesInput">
+                </div>
+            </div>
+
+            <!-- 现场图片 -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold mr-3">5</span>
+                    现场图片
+                </h2>
+                <div class="form-group">
+                    <label class="form-label">上传现场图片</label>
+                    <div class="flex flex-wrap gap-4" id="imageContainer">
+                        <div class="image-preview" onclick="document.getElementById('imageInput').click()">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <input type="file" id="imageInput" accept="image/*" multiple class="hidden" onchange="handleImageUpload(event)">
+                    <input type="hidden" name="images" id="imagesInput">
+                    <p class="text-sm text-gray-500 mt-2">支持 JPG、PNG 格式，最多上传 9 张图片</p>
+                </div>
+            </div>
+
+            <!-- 备注 -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold mr-3">6</span>
+                    备注信息
+                </h2>
+                <div class="form-group">
+                    <label class="form-label">采集备注</label>
+                    <textarea name="collect_remark" rows="4" class="form-input" placeholder="请输入其他需要说明的信息..."></textarea>
+                </div>
+            </div>
+
+            <!-- 提交按钮 -->
+            <div class="flex items-center justify-end gap-4 pt-6 border-t">
+                <button type="button" class="btn-secondary" onclick="resetForm()">重置</button>
+                <button type="submit" class="btn-primary" id="submitBtn">
+                    <span id="submitText">提交采集</span>
+                    <svg id="submitLoading" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // API 配置 - 部署时修改这里
+        const API_CONFIG = {
+            // 开发环境
+            baseURL: '',  // 空字符串表示使用相对路径（同域）
+            
+            // 生产环境（部署后取消下面的注释，并注释掉上面的）
+            // baseURL: 'https://your-railway-app.up.railway.app'
+        };
+
+        // 获取完整 API URL
+        function getApiUrl(path) {
+            return `${API_CONFIG.baseURL}${path}`;
+        }
+
+        // 服务项目选择
+        const serviceTags = document.querySelectorAll('.service-tag');
+        const servicesInput = document.getElementById('servicesInput');
+        let selectedServices = [];
+
+        serviceTags.forEach(tag => {
+            tag.addEventListener('click', () => {
+                tag.classList.toggle('selected');
+                const value = tag.dataset.value;
+                if (tag.classList.contains('selected')) {
+                    selectedServices.push(value);
+                } else {
+                    selectedServices = selectedServices.filter(s => s !== value);
+                }
+                servicesInput.value = JSON.stringify(selectedServices);
+            });
+        });
+
+        // 图片上传处理
+        let uploadedImages = [];
+
+        function handleImageUpload(event) {
+            const files = event.target.files;
+            const container = document.getElementById('imageContainer');
+
+            Array.from(files).forEach(file => {
+                if (uploadedImages.length >= 9) {
+                    alert('最多只能上传 9 张图片');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const imgDiv = document.createElement('div');
+                    imgDiv.className = 'relative';
+                    imgDiv.innerHTML = `
+                        <img src="${e.target.result}" class="w-24 h-24 object-cover rounded-lg border">
+                        <button type="button" onclick="removeImage(this, '${e.target.result}')" class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600">
+                            ×
+                        </button>
+                    `;
+                    container.insertBefore(imgDiv, container.lastElementChild);
+                    uploadedImages.push(e.target.result);
+                    document.getElementById('imagesInput').value = JSON.stringify(uploadedImages);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function removeImage(btn, imageData) {
+            btn.parentElement.remove();
+            uploadedImages = uploadedImages.filter(img => img !== imageData);
+            document.getElementById('imagesInput').value = JSON.stringify(uploadedImages);
+        }
+
+        // 表单验证
+        function validateForm() {
+            let isValid = true;
+            const requiredFields = ['station_name', 'collect_type', 'station_type', 'area_code', 'address'];
+
+            requiredFields.forEach(field => {
+                const input = document.querySelector(`[name="${field}"]`);
+                const errorDiv = document.getElementById(`error-${field}`);
+
+                if (!input.value.trim()) {
+                    input.classList.add('error');
+                    if (errorDiv) errorDiv.textContent = '此项为必填项';
+                    isValid = false;
+                } else {
+                    input.classList.remove('error');
+                    if (errorDiv) errorDiv.textContent = '';
+                }
+            });
+
+            return isValid;
+        }
+
+        // 生成采集编号
+        function generateCollectNo() {
+            const now = new Date();
+            const dateStr = now.getFullYear().toString() +
+                String(now.getMonth() + 1).padStart(2, '0') +
+                String(now.getDate()).padStart(2, '0');
+            const randomStr = Math.random().toString(36).substr(2, 4).toUpperCase();
+            return `CJ${dateStr}${randomStr}`;
+        }
+
+        // 表单提交
+        document.getElementById('stationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!validateForm()) return;
+
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const submitLoading = document.getElementById('submitLoading');
+
+            // 显示加载状态
+            submitBtn.disabled = true;
+            submitText.textContent = '提交中...';
+            submitLoading.classList.remove('hidden');
+
+            // 收集表单数据
+            const formData = new FormData(e.target);
+            const data = {
+                collect_no: generateCollectNo(),
+                station_name: formData.get('station_name'),
+                collect_type: parseInt(formData.get('collect_type')),
+                station_type: parseInt(formData.get('station_type')),
+                area_code: formData.get('area_code'),
+                address: formData.get('address'),
+                longitude: formData.get('longitude') ? parseFloat(formData.get('longitude')) : null,
+                latitude: formData.get('latitude') ? parseFloat(formData.get('latitude')) : null,
+                contact_name: formData.get('contact_name'),
+                contact_phone: formData.get('contact_phone'),
+                business_hours: formData.get('business_hours'),
+                services: servicesInput.value ? JSON.parse(servicesInput.value) : [],
+                images: document.getElementById('imagesInput').value ? JSON.parse(document.getElementById('imagesInput').value) : [],
+                collect_remark: formData.get('collect_remark'),
+                collector_id: 1, // 当前登录用户ID
+                collect_time: new Date().toISOString()
+            };
+
+            try {
+                // 调用后端 API
+                const response = await fetch(getApiUrl('/api/station-collect'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('采集提交成功！采集编号：' + data.collect_no);
+                    resetForm();
+                } else {
+                    alert('提交失败：' + (result.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('提交错误:', error);
+                alert('提交失败，请检查网络连接');
+            } finally {
+                submitBtn.disabled = false;
+                submitText.textContent = '提交采集';
+                submitLoading.classList.add('hidden');
+            }
+        });
+
+        // 重置表单
+        function resetForm() {
+            document.getElementById('stationForm').reset();
+            selectedServices = [];
+            uploadedImages = [];
+            serviceTags.forEach(tag => tag.classList.remove('selected'));
+            document.getElementById('servicesInput').value = '';
+            document.getElementById('imagesInput').value = '';
+            document.getElementById('imageContainer').innerHTML = `
+                <div class="image-preview" onclick="document.getElementById('imageInput').click()">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>站点清单</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .station-card { transition: all 0.3s ease; }
+        .station-card:hover { transform: translateY(-4px); box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        .status-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+        .status-pending { background: #FEF3C7; color: #92400E; }
+        .status-approved { background: #D1FAE5; color: #065F46; }
+        .status-rejected { background: #FEE2E2; color: #991B1B; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 1rem; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; animation: modalSlide 0.3s ease; }
+        @keyframes modalSlide { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .search-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 0.75rem center; background-size: 1.25rem; padding-left: 2.5rem; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 头部导航 -->
+    <nav class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-map-marker-alt text-blue-600 text-2xl mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">站点清单</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/station-collect-form.html" class="btn-primary flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-plus mr-2"></i>新增采集
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 搜索和筛选栏 -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <!-- 搜索框 -->
+                <div class="flex-1 max-w-lg">
+                    <input type="text" id="searchInput" class="search-input w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="搜索站点名称、地址、编号...">
+                </div>
+                
+                <!-- 筛选器 -->
+                <div class="flex flex-wrap gap-3">
+                    <select id="auditStatusFilter" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">全部状态</option>
+                        <option value="0">待审核</option>
+                        <option value="1">已通过</option>
+                        <option value="2">已驳回</option>
+                    </select>
+                    <select id="stationTypeFilter" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">全部类型</option>
+                        <option value="1">综合检测站</option>
+                        <option value="2">环保检测站</option>
+                        <option value="3">安检站</option>
+                    </select>
+                    <button onclick="resetFilters()" class="px-4 py-2.5 text-gray-600 hover:text-gray-900 transition">
+                        <i class="fas fa-undo mr-1"></i>重置
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow-sm p-4">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <i class="fas fa-list text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">总站点数</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalCount">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                        <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">待审核</p>
+                        <p class="text-2xl font-bold text-gray-900" id="pendingCount">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">已通过</p>
+                        <p class="text-2xl font-bold text-gray-900" id="approvedCount">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center">
+                        <i class="fas fa-times-circle text-red-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">已驳回</p>
+                        <p class="text-2xl font-bold text-gray-900" id="rejectedCount">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 站点列表 -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <!-- 列表头部 -->
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">站点列表</h2>
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-500">每页显示</span>
+                    <select id="pageSizeSelect" class="px-2 py-1 border border-gray-300 rounded text-sm">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 列表内容 -->
+            <div id="stationList" class="divide-y divide-gray-200">
+                <!-- 加载中状态 -->
+                <div class="p-8">
+                    <div class="space-y-4">
+                        <div class="skeleton h-16 rounded-lg"></div>
+                        <div class="skeleton h-16 rounded-lg"></div>
+                        <div class="skeleton h-16 rounded-lg"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分页 -->
+            <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                <div class="text-sm text-gray-500">
+                    显示 <span id="showingFrom">0</span> - <span id="showingTo">0</span> 条，共 <span id="totalItems">0</span> 条
+                </div>
+                <div class="flex items-center space-x-2" id="pagination">
+                    <!-- 分页按钮 -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 站点详情弹窗 -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <!-- 弹窗头部 -->
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+                <h3 class="text-xl font-bold text-gray-900">站点详情</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- 弹窗内容 -->
+            <div id="modalBody" class="p-6">
+                <!-- 动态加载内容 -->
+            </div>
+            
+            <!-- 弹窗底部 -->
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 sticky bottom-0 bg-white">
+                <button onclick="closeModal()" class="px-4 py-2 text-gray-600 hover:text-gray-900 transition">关闭</button>
+                <button id="auditBtn" onclick="showAuditForm()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition hidden">审核</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 审核弹窗 -->
+    <div id="auditModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-bold text-gray-900">审核站点</h3>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">审核结果</label>
+                    <div class="flex space-x-4">
+                        <label class="flex items-center">
+                            <input type="radio" name="auditResult" value="1" class="mr-2 text-blue-600">
+                            <span class="text-green-600 font-medium">通过</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="auditResult" value="2" class="mr-2 text-blue-600">
+                            <span class="text-red-600 font-medium">驳回</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">审核备注</label>
+                    <textarea id="auditRemark" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="请输入审核意见..."></textarea>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                <button onclick="closeAuditModal()" class="px-4 py-2 text-gray-600 hover:text-gray-900 transition">取消</button>
+                <button onclick="submitAudit()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API 配置 - 部署时修改这里
+        const API_CONFIG = {
+            // 开发环境
+            baseURL: '',  // 空字符串表示使用相对路径（同域）
+            
+            // 生产环境（部署后取消下面的注释，并注释掉上面的）
+            // baseURL: 'https://your-railway-app.up.railway.app'
+        };
+
+        // 获取完整 API URL
+        function getApiUrl(path) {
+            return `${API_CONFIG.baseURL}${path}`;
+        }
+
+        // 全局状态
+        let currentPage = 1;
+        let pageSize = 10;
+        let currentStation = null;
+        let searchKeyword = '';
+        let auditStatus = '';
+        let stationType = '';
+
+        // 状态映射
+        const statusMap = {
+            0: { text: '待审核', class: 'status-pending', icon: 'fa-clock' },
+            1: { text: '已通过', class: 'status-approved', icon: 'fa-check-circle' },
+            2: { text: '已驳回', class: 'status-rejected', icon: 'fa-times-circle' }
+        };
+
+        const typeMap = {
+            1: '综合检测站',
+            2: '环保检测站',
+            3: '安检站'
+        };
+
+        const collectTypeMap = {
+            1: '新站点',
+            2: '信息更新',
+            3: '纠错',
+            4: '补充'
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStations();
+            loadStatistics();
+            setupEventListeners();
+        });
+
+        // 设置事件监听
+        function setupEventListeners() {
+            // 搜索框
+            let searchTimeout;
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    searchKeyword = e.target.value;
+                    currentPage = 1;
+                    loadStations();
+                }, 500);
+            });
+
+            // 状态筛选
+            document.getElementById('auditStatusFilter').addEventListener('change', (e) => {
+                auditStatus = e.target.value;
+                currentPage = 1;
+                loadStations();
+            });
+
+            // 类型筛选
+            document.getElementById('stationTypeFilter').addEventListener('change', (e) => {
+                stationType = e.target.value;
+                currentPage = 1;
+                loadStations();
+            });
+
+            // 每页数量
+            document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
+                pageSize = parseInt(e.target.value);
+                currentPage = 1;
+                loadStations();
+            });
+
+            // 点击弹窗外部关闭
+            document.getElementById('detailModal').addEventListener('click', (e) => {
+                if (e.target.id === 'detailModal') closeModal();
+            });
+
+            document.getElementById('auditModal').addEventListener('click', (e) => {
+                if (e.target.id === 'auditModal') closeAuditModal();
+            });
+        }
+
+        // 加载站点列表
+        async function loadStations() {
+            try {
+                showLoading();
+
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    pageSize: pageSize
+                });
+
+                if (searchKeyword) params.append('keyword', searchKeyword);
+                if (auditStatus) params.append('audit_status', auditStatus);
+                if (stationType) params.append('station_type', stationType);
+
+                const response = await fetch(getApiUrl(`/api/station-collect?${params}`));
+                const result = await response.json();
+
+                if (result.success) {
+                    renderStationList(result.data);
+                    renderPagination(result.pagination);
+                    updateShowingInfo(result.pagination);
+                } else {
+                    showError('加载数据失败：' + result.message);
+                }
+            } catch (error) {
+                console.error('加载站点列表错误:', error);
+                showError('加载数据失败，请检查网络连接');
+            }
+        }
+
+        // 加载统计数据
+        async function loadStatistics() {
+            try {
+                const response = await fetch(getApiUrl('/api/station-collect?page=1&pageSize=1000'));
+                const result = await response.json();
+
+                if (result.success) {
+                    const data = result.data;
+                    document.getElementById('totalCount').textContent = result.pagination.total;
+                    document.getElementById('pendingCount').textContent = data.filter(s => s.audit_status === 0).length;
+                    document.getElementById('approvedCount').textContent = data.filter(s => s.audit_status === 1).length;
+                    document.getElementById('rejectedCount').textContent = data.filter(s => s.audit_status === 2).length;
+                }
+            } catch (error) {
+                console.error('加载统计数据错误:', error);
+            }
+        }
+
+        // 渲染站点列表
+        function renderStationList(stations) {
+            const container = document.getElementById('stationList');
+
+            if (stations.length === 0) {
+                container.innerHTML = `
+                    <div class="p-12 text-center">
+                        <i class="fas fa-inbox text-gray-300 text-5xl mb-4"></i>
+                        <p class="text-gray-500">暂无站点数据</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = stations.map(station => {
+                const status = statusMap[station.audit_status] || statusMap[0];
+                const type = typeMap[station.station_type] || '未知类型';
+                const collectType = collectTypeMap[station.collect_type] || '新站点';
+
+                return `
+                    <div class="station-card p-6 cursor-pointer" onclick="showDetail(${station.collect_id})">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-2">
+                                    <h3 class="text-lg font-semibold text-gray-900 mr-3">${escapeHtml(station.station_name)}</h3>
+                                    <span class="status-badge ${status.class}">
+                                        <i class="fas ${status.icon} mr-1"></i>${status.text}
+                                    </span>
+                                </div>
+                                <div class="flex flex-wrap items-center text-sm text-gray-500 mb-3 gap-4">
+                                    <span><i class="fas fa-map-marker-alt mr-1"></i>${escapeHtml(station.address)}</span>
+                                    <span><i class="fas fa-tag mr-1"></i>${type}</span>
+                                    <span><i class="fas fa-qrcode mr-1"></i>${station.collect_no}</span>
+                                </div>
+                                <div class="flex items-center text-sm text-gray-400">
+                                    <span class="mr-4"><i class="fas fa-user mr-1"></i>采集人: ${station.collector_id}</span>
+                                    <span><i class="fas fa-calendar mr-1"></i>${formatDate(station.collect_time)}</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 渲染分页
+        function renderPagination(pagination) {
+            const container = document.getElementById('pagination');
+            const totalPages = pagination.totalPages;
+
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            // 上一页
+            html += `
+                <button onclick="goToPage(${currentPage - 1})" 
+                    class="px-3 py-2 rounded-lg border ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}"
+                    ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+
+            // 页码
+            const maxButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+            if (endPage - startPage < maxButtons - 1) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+
+            if (startPage > 1) {
+                html += `<button onclick="goToPage(1)" class="px-3 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50">1</button>`;
+                if (startPage > 2) html += `<span class="px-2">...</span>`;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <button onclick="goToPage(${i})" 
+                        class="px-3 py-2 rounded-lg border ${i === currentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<span class="px-2">...</span>`;
+                html += `<button onclick="goToPage(${totalPages})" class="px-3 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50">${totalPages}</button>`;
+            }
+
+            // 下一页
+            html += `
+                <button onclick="goToPage(${currentPage + 1})" 
+                    class="px-3 py-2 rounded-lg border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}"
+                    ${currentPage === totalPages ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // 更新显示信息
+        function updateShowingInfo(pagination) {
+            const from = (pagination.page - 1) * pagination.pageSize + 1;
+            const to = Math.min(pagination.page * pagination.pageSize, pagination.total);
+            document.getElementById('showingFrom').textContent = pagination.total > 0 ? from : 0;
+            document.getElementById('showingTo').textContent = to;
+            document.getElementById('totalItems').textContent = pagination.total;
+        }
+
+        // 跳转到指定页
+        function goToPage(page) {
+            currentPage = page;
+            loadStations();
+        }
+
+        // 显示加载状态
+        function showLoading() {
+            document.getElementById('stationList').innerHTML = `
+                <div class="p-8">
+                    <div class="space-y-4">
+                        <div class="skeleton h-16 rounded-lg"></div>
+                        <div class="skeleton h-16 rounded-lg"></div>
+                        <div class="skeleton h-16 rounded-lg"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 显示错误
+        function showError(message) {
+            document.getElementById('stationList').innerHTML = `
+                <div class="p-12 text-center">
+                    <i class="fas fa-exclamation-circle text-red-400 text-5xl mb-4"></i>
+                    <p class="text-red-500">${message}</p>
+                    <button onclick="loadStations()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-refresh mr-1"></i>重新加载
+                    </button>
+                </div>
+            `;
+        }
+
+        // 显示详情
+        async function showDetail(id) {
+            try {
+                const response = await fetch(getApiUrl(`/api/station-collect/${id}`));
+                const result = await response.json();
+
+                if (result.success) {
+                    currentStation = result.data;
+                    renderDetail(currentStation);
+                    document.getElementById('detailModal').classList.add('active');
+                    
+                    // 显示审核按钮（仅待审核状态）
+                    const auditBtn = document.getElementById('auditBtn');
+                    if (currentStation.audit_status === 0) {
+                        auditBtn.classList.remove('hidden');
+                    } else {
+                        auditBtn.classList.add('hidden');
+                    }
+                } else {
+                    alert('加载详情失败：' + result.message);
+                }
+            } catch (error) {
+                console.error('加载详情错误:', error);
+                alert('加载详情失败，请检查网络连接');
+            }
+        }
+
+        // 渲染详情
+        function renderDetail(station) {
+            const status = statusMap[station.audit_status] || statusMap[0];
+            const type = typeMap[station.station_type] || '未知类型';
+            const collectType = collectTypeMap[station.collect_type] || '新站点';
+            const services = station.services ? JSON.parse(station.services) : [];
+            const images = station.images ? JSON.parse(station.images) : [];
+
+            document.getElementById('modalBody').innerHTML = `
+                <div class="space-y-6">
+                    <!-- 基本信息 -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 mb-3">基本信息</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="text-xs text-gray-400">采集编号</span>
+                                <p class="font-medium">${station.collect_no}</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="text-xs text-gray-400">采集类型</span>
+                                <p class="font-medium">${collectType}</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="text-xs text-gray-400">站点类型</span>
+                                <p class="font-medium">${type}</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="text-xs text-gray-400">审核状态</span>
+                                <span class="status-badge ${status.class}">
+                                    <i class="fas ${status.icon} mr-1"></i>${status.text}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置信息 -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 mb-3">位置信息</h4>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="mb-2"><i class="fas fa-map-marker-alt text-gray-400 mr-2"></i>${escapeHtml(station.address)}</p>
+                            ${station.longitude && station.latitude ? `
+                                <p class="text-sm text-gray-500">
+                                    <i class="fas fa-crosshairs text-gray-400 mr-2"></i>
+                                    经度: ${station.longitude}, 纬度: ${station.latitude}
+                                </p>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- 联系信息 -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 mb-3">联系信息</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="text-xs text-gray-400">联系人</span>
+                                <p class="font-medium">${escapeHtml(station.contact_name) || '-'}</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="text-xs text-gray-400">联系电话</span>
+                                <p class="font-medium">${escapeHtml(station.contact_phone) || '-'}</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg col-span-2">
+                                <span class="text-xs text-gray-400">营业时间</span>
+                                <p class="font-medium">${escapeHtml(station.business_hours) || '-'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 服务项目 -->
+                    ${services.length > 0 ? `
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-500 mb-3">服务项目</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${services.map(s => `<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">${escapeHtml(s)}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- 现场图片 -->
+                    ${images.length > 0 ? `
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-500 mb-3">现场图片</h4>
+                            <div class="grid grid-cols-3 gap-3">
+                                ${images.map(img => `
+                                    <img src="${img}" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 transition" onclick="window.open('${img}')">
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- 采集信息 -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 mb-3">采集信息</h4>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-400">采集人:</span>
+                                <span class="ml-2">${station.collector_id}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">采集时间:</span>
+                                <span class="ml-2">${formatDateTime(station.collect_time)}</span>
+                            </div>
+                            ${station.auditor_id ? `
+                                <div>
+                                    <span class="text-gray-400">审核人:</span>
+                                    <span class="ml-2">${station.auditor_id}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400">审核时间:</span>
+                                    <span class="ml-2">${formatDateTime(station.audit_time)}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        ${station.collect_remark ? `
+                            <div class="mt-3 bg-yellow-50 p-3 rounded-lg">
+                                <span class="text-xs text-yellow-600">采集备注</span>
+                                <p class="text-sm mt-1">${escapeHtml(station.collect_remark)}</p>
+                            </div>
+                        ` : ''}
+                        ${station.audit_remark ? `
+                            <div class="mt-3 bg-gray-50 p-3 rounded-lg">
+                                <span class="text-xs text-gray-500">审核备注</span>
+                                <p class="text-sm mt-1">${escapeHtml(station.audit_remark)}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+            currentStation = null;
+        }
+
+        // 显示审核表单
+        function showAuditForm() {
+            document.getElementById('auditModal').classList.add('active');
+        }
+
+        // 关闭审核弹窗
+        function closeAuditModal() {
+            document.getElementById('auditModal').classList.remove('active');
+            document.getElementById('auditRemark').value = '';
+            document.querySelectorAll('input[name="auditResult"]').forEach(r => r.checked = false);
+        }
+
+        // 提交审核
+        async function submitAudit() {
+            const result = document.querySelector('input[name="auditResult"]:checked');
+            const remark = document.getElementById('auditRemark').value;
+
+            if (!result) {
+                alert('请选择审核结果');
+                return;
+            }
+
+            try {
+                const response = await fetch(getApiUrl(`/api/station-collect/${currentStation.collect_id}/audit`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        audit_status: parseInt(result.value),
+                        audit_remark: remark,
+                        auditor_id: 1 // 当前登录用户ID
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('审核成功！');
+                    closeAuditModal();
+                    closeModal();
+                    loadStations();
+                    loadStatistics();
+                } else {
+                    alert('审核失败：' + data.message);
+                }
+            } catch (error) {
+                console.error('审核错误:', error);
+                alert('审核失败，请检查网络连接');
+            }
+        }
+
+        // 重置筛选
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('auditStatusFilter').value = '';
+            document.getElementById('stationTypeFilter').value = '';
+            searchKeyword = '';
+            auditStatus = '';
+            stationType = '';
+            currentPage = 1;
+            loadStations();
+        }
+
+        // 工具函数：转义 HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 工具函数：格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN');
+        }
+
+        // 工具函数：格式化日期时间
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN');
+        }
+
+        // ESC 键关闭弹窗
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeAuditModal();
+            }
+        });
+    </script>
+</body>
+</html>
