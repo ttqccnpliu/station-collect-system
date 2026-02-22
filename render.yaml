@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: station-collect-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: SUPABASE_URL
+        value: https://qvgzkvtayjnrydzcvuil.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2Z3prdnRheWpucnlkemN2dWlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NzE1NzEsImV4cCI6MjA4NzE0NzU3MX0.58w2sb1SNg-wbZDk2UyOE6vjkI504-jccYagJ_s7OCI
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
