@@ -1,13 +1,16 @@
 {
   "version": 2,
   "name": "station-collect-frontend",
-  "buildCommand": null,
-  "outputDirectory": "frontend",
-  "framework": null,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/$1"
+      "src": "frontend/**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
     }
   ]
 }
